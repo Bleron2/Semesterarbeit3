@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #ff5733;
+            font-size: 2.5em;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        img {
+            display: block;
+            margin: 0 auto 20px;
+            max-width: 100%;
+            border-radius: 10px;
+        }
+
+        form {
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        input[type="text"], input[type="date"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        input[type="submit"] {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #218838;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background: #fff;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<h1>Event Manager</h1>
+<img src="https://wp-eventmanager.com/wp-content/uploads/blog-images/2023/jan/good-event-manager/good-event-manager.jpg" alt="Event Manager Bild">
+
+<h2>Liste der Events</h2>
+<ul id="event-list"></ul>
+
+<h2>Neues Event erstellen</h2>
+<form id="event-form">
+    <label for="title">Titel:</label>
+    <input type="text" id="title" name="title" required>
+    <label for="description">Beschreibung:</label>
+    <input type="text" id="description" name="description" required>
+    <label for="date">Datum:</label>
+    <input type="date" id="date" name="date" required>
+    <label for="location">Ort:</label>
+    <input type="text" id="location" name="location" required>
+    <input type="submit" value="Event erstellen">
+</form>
+
+<h2>Benutzerregistrierung</h2>
+<form id="register-form">
+    <label for="username">Benutzername:</label>
+    <input type="text" id="username" name="username" required>
+    <label for="password">Passwort:</label>
+    <input type="password" id="password" name="password" required>
+    <input type="submit" value="Registrieren">
+</form>
+
+<h2>Benutzeranmeldung</h2>
+<form id="login-form">
+    <label for="login-username">Benutzername:</label>
+    <input type="text" id="login-username" name="username" required>
+    <label for="login-password">Passwort:</label>
+    <input type="password" id="login-password" name="password" required>
+    <input type="submit" value="Anmelden">
+</form>
+
+<script>
+    async function loadEvents() {
+        const response = await fetch('/events');
+        const events = await response.json();
+
+        const eventList = document.getElementById('event-list');
+        eventList.innerHTML = '';
+
+        events.forEach(event => {
+            const li = document.createElement('li');
+            li.textContent = `${event.title} - ${event.date} - ${event.location}`;
+            li.addEventListener('click', () => showEventDetails(event.id));
+            eventList.appendChild(li);
+        });
+    }
+
+    async function showEventDetails(eventID) {
+        const response = await fetch(`/events/details?id=${eventID}`);
+        const event = await response.json();
+
+        const eventDetailsWindow = window.open("", "_blank");
+        eventDetailsWindow.document.write(`
+        <html>
+            <head>
+                <title>Event Details</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        padding: 20px;
+                    }
+                    h2 {
+                        color: #ff5733;
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>${event.title}</h2>
+                <p><strong>Beschreibung:</strong> ${event.description}</p>
+                <p><strong>Ort:</strong> ${event.location}</p>
+                <p><strong>Datum:</strong> ${event.date}</p>
+                <p><strong>Erstellt von:</strong> ${event.creator_username}</p>
+                <h3>Teilnehmer</h3>
+                <ul id="participants-list"></ul>
+                <button id="join-button">Teilnehmen</button>
+                <script>
+                    document.getElementById('join-button').addEventListener('click', async () => {
+                        const response = await fetch('/events/join', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ event_id: ${eventID} }),
+                        });
+
+                        if (response.ok) {
+                            alert('Du bist angemeldet!');
+                            loadParticipants();
+                        } else {
+                            alert('Fehler beim Teilnehmen');
+                        }
+                    });
+
+                    async function loadParticipants() {
+                        const response = await fetch('/events/participants?id=${eventID}');
+                        const participants = await response.json();
+                        const participantsList = document.getElementById('participants-list');
+                        participantsList.innerHTML = '';
+
+                        participants.forEach(username => {
+                            const li = document.createElement('li');
+                            li.textContent = username;
+                            participantsList.appendChild(li);
+                        });
+                    }
+
+                    loadParticipants(); // Teilnehmer laden
+                </script>
+</body>
+</html>
+`);
+}
+
+document.getElementById('event-form').addEventListener('submit', async function (e) {
+e.preventDefault();
+
+const title = document.getElementById('title').value;
+const description = document.getElementById('description').value;
+const date = document.getElementById('date').value;
+const location = document.getElementById('location').value;
+
+const response = await fetch('/events/create', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+},
+body: JSON.stringify({ title, description, date, location }),
+});
+
+if (response.ok) {
+loadEvents();
+document.getElementById('event-form').reset();
+} else {
+alert("Fehler beim Erstellen des Events");
+}
+});
+
+document.getElementById('register-form').addEventListener('submit', async function (e) {
+e.preventDefault();
+const username = document.getElementById('username').value;
+const password = document.getElementById('password').value;
+
+const response = await fetch('/register', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+},
+body: JSON.stringify({ username, password }),
+});
+
+if (response.ok) {
+alert('Registrierung erfolgreich');
+} else {
+alert('Registrierung fehlgeschlagen');
+}
+});
+
+document.getElementById('login-form').addEventListener('submit', async function (e) {
+e.preventDefault();
+const username = document.getElementById('login-username').value;
+const password = document.getElementById('login-password').value;
+
+const response = await fetch('/login', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+},
+body: JSON.stringify({ username, password }),
+});
+
+if (response.ok) {
+alert('Anmeldung erfolgreich');
+} else {
+alert('Anmeldung fehlgeschlagen');
+}
+});
+
+window.onload = loadEvents; // Lade die Events, wenn die Seite geladen wird
+</script>
+</body>
+</html>
